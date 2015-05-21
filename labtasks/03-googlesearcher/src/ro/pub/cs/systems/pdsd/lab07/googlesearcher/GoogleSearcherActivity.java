@@ -1,13 +1,25 @@
 package ro.pub.cs.systems.pdsd.lab07.googlesearcher;
 
+import java.io.IOException;
+
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.DefaultHttpClient;
+
 import android.app.Activity;
+import android.graphics.drawable.Drawable.ConstantState;
 import android.os.Bundle;
+import android.provider.SyncStateContract.Constants;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 public class GoogleSearcherActivity extends Activity {
 	
@@ -36,6 +48,30 @@ public class GoogleSearcherActivity extends Activity {
 			// - mimetype is text/html
 			// - encoding is UTF-8
 			// - history is null
+			
+			String address = ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.GOOGLE_INTERNET_ADDRESS + keyword;
+			HttpClient httpClient = new DefaultHttpClient();
+			HttpGet httpGet = new HttpGet(address);
+			ResponseHandler<String> responseHandler = new BasicResponseHandler();
+			String result = null;
+			try {
+				result = httpClient.execute(httpGet, responseHandler);
+				final String final_result = result;
+				googleResultsWebView.post(new Runnable() {
+					
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						googleResultsWebView.loadDataWithBaseURL(ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.GOOGLE_INTERNET_ADDRESS, final_result, ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.MIME_TYPE, ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.CHARACTER_ENCODING, null);
+					}
+				});
+			} catch (ClientProtocolException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
 		}
 	}
@@ -52,7 +88,18 @@ public class GoogleSearcherActivity extends Activity {
 			// split a multiple word (separated by space) keyword and link them through +
 			// prepend the keyword with "search?q=" string
 			// start the GoogleSearcherThread passing the keyword
-
+			
+			String keyword = keywordEditText.getText().toString();
+			if (keyword == null || keyword.isEmpty()) {
+				Toast.makeText(getApplication(), ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.EMPTY_KEYWORD_ERROR_MESSAGE, Toast.LENGTH_LONG).show();
+			} else {
+				String[] keywords = keyword.split(" ");
+				keyword = ro.pub.cs.systems.pdsd.lab07.googlesearcher.general.Constants.SEARCH_PREFIX + keywords[0];
+				for (int k = 1; k < keywords.length; k++) {
+					keyword += "+" + keywords[k];
+				}
+				new GoogleSearcherThread(keyword).start();
+			}
 		}
 	}
 

@@ -1,11 +1,26 @@
 package ro.pub.cs.systems.pdsd.lab07.xkcdcartoondisplayer.graphicuserinterface;
 
+import java.io.IOException;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.jsoup.Jsoup;
+
 import ro.pub.cs.systems.pdsd.lab07.xkcdcartoondisplayer.R;
 import ro.pub.cs.systems.pdsd.lab07.xkcdcartoondisplayer.entities.XkcdCartoonInfo;
 import ro.pub.cs.systems.pdsd.xkcdcartoondisplayer.general.Constants;
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.renderscript.Element;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -48,6 +63,21 @@ public class XkcdCartoonDisplayerActivity extends Activity {
 			// - create an instance of a ResponseHandler object
 			// - execute the request, thus obtaining the web page source code
 			
+			String address = Constants.XKCD_INTERNET_ADDRESS;
+			String source_code = null;
+			HttpClient httpClient = new DefaultHttpClient();
+			HttpGet httpGet = new HttpGet(urls[0]);
+			ResponseHandler<String> responseHandler = new BasicResponseHandler();
+			try {
+				source_code = httpClient.execute(httpGet, responseHandler);
+			} catch (ClientProtocolException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 			// 2. parse the web page source code
 			// - cartoon title: get the tag whose id equals "ctitle"
 			// - cartoon url
@@ -67,6 +97,41 @@ public class XkcdCartoonDisplayerActivity extends Activity {
 			//   * prepend the value with the base url: http://www.xkcd.com
 			//   * attach the next button a click listener with the address attached
 			
+			org.jsoup.nodes.Document document = Jsoup.parse(source_code);
+			org.jsoup.nodes.Element htmlTag = document.child(0);
+			
+			org.jsoup.nodes.Element htmlTitle = htmlTag.getElementsByAttributeValue(Constants.ID_ATTRIBUTE, Constants.CTITLE_VALUE).first();
+			xkcdCartoonInfo.setCartoonTitle(htmlTitle.ownText());
+			
+			org.jsoup.nodes.Element htmlIdComic = htmlTag.getElementsByAttributeValue(Constants.ID_ATTRIBUTE, Constants.COMIC_VALUE).first();
+			String cartoonInternetAddress = htmlIdComic.getElementsByTag(Constants.IMG_TAG).attr(Constants.SRC_ATTRIBUTE);
+			String cartoonHttpAddress = Constants.HTTP_PROTOCOL + cartoonInternetAddress;
+			
+			HttpGet httpCartoonGet = new HttpGet(cartoonHttpAddress);
+			HttpResponse httpGetResponse;
+			try {
+				httpGetResponse = httpClient.execute(httpCartoonGet);
+				HttpEntity httpGetEntity = httpGetResponse.getEntity();
+				xkcdCartoonInfo.setCartoonContent(BitmapFactory.decodeStream(httpGetEntity.getContent()));
+				xkcdCartoonInfo.setCartoonUrl(cartoonHttpAddress);
+			} catch (ClientProtocolException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			org.jsoup.nodes.Element aTagRelPrev = htmlTag.getElementsByAttributeValue(Constants.REL_ATTRIBUTE, Constants.PREVIOUS_VALUE).first();
+			String previousCartoonInternetAddress = Constants.XKCD_INTERNET_ADDRESS + aTagRelPrev.attr(Constants.HREF_ATTRIBUTE);
+			previousButton.setOnClickListener(new XkcdCartoonUrlButtonClickListener(previousCartoonInternetAddress));
+			
+			org.jsoup.nodes.Element aTagRelNext = htmlTag.getElementsByAttributeValue(Constants.REL_ATTRIBUTE, Constants.NEXT_VALUE).first();
+			String nextCartoonInternetAddress = Constants.XKCD_INTERNET_ADDRESS + aTagRelNext.attr(Constants.HREF_ATTRIBUTE);
+			nextButton.setOnClickListener(new XkcdCartoonUrlButtonClickListener(nextCartoonInternetAddress));
+			
+			
+			
 			return xkcdCartoonInfo;
 
 		}
@@ -79,7 +144,14 @@ public class XkcdCartoonDisplayerActivity extends Activity {
 			// cartoonTitle -> xkcdCartoonTitleTextView
 			// cartoonContent -> xkcdCartoonImageView
 			// cartoonUrl -> xkcdCartoonUrlTextView
-
+			
+			String cartoonTitle = xkcdCartoonInfo.getCartoonTitle().toString();
+			xkcdCartoonTitleTextView.setText(cartoonTitle);
+			Bitmap cartoonContent = xkcdCartoonInfo.getCartoonContent();
+			xkcdCartoonImageView.setImageBitmap(cartoonContent);
+			String cartoonUrl = xkcdCartoonInfo.getCartoonUrl().toString();
+			xkcdCartoonUrlTextView.setText(cartoonUrl);
+			
 		}
 		
 	}
